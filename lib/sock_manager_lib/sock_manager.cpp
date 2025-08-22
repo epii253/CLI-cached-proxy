@@ -77,8 +77,9 @@ std::pair<std::string, std::string> GetMethodAndContent(char* buff) {
     std::string_view str(buff);
 
     int ind = 0;
-    while (ind < str.size() && std::isalpha(str[ind])) {
-        result.first += std::tolower(str[ind++]);
+    while (ind < str.size() && str[ind] != ' ') {
+        result.first += std::tolower(str[ind]);
+        ++ind;
     }
 
     if (str[ind] != ' ')
@@ -86,7 +87,7 @@ std::pair<std::string, std::string> GetMethodAndContent(char* buff) {
     ++ind;
 
     while (ind < str.size() && str[ind] != ' ') {
-        result.first += str[ind++];
+        result.second += str[ind++];
     }
 
     return result;
@@ -127,7 +128,7 @@ void CliendWork(int client_fd, const std::string& adress, const std::string& url
             
             SendData(socket.socket_fd, header.size(), header.data());
             SendData(socket.socket_fd, responce.text.size(), responce.text.data());
-            
+
         } else 
             break;
     }

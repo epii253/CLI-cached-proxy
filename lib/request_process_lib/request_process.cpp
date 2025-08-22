@@ -82,10 +82,7 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
         while (ind < req.size() && req[ind] != '\n') {
             val.push_back(req[ind++]);
         }
-        
-        while (ind < req.size() && !std::isalnum(req[ind])) {
-            ++ind;
-        }
+        ind += 1;
         
         if (ReqestProcess::banned_headers.find(field) != ReqestProcess::banned_headers.end() || field.empty())
             continue;
@@ -93,8 +90,12 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
         if (field == "host") {
             val = origin.substr(origin.find("//") + 2);
         }
-
         headers[field] = val;        
+
+        if (std::isspace(req[ind])) {
+            ++ind;
+            break;
+        }
     }
 
     if (method == ReqestProcess::get_header) {            
@@ -104,14 +105,19 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
         responce = cpr::Head(full_url, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled}); //TODO
 
     } else if (method == ReqestProcess::post_header) { //TODO
-        int BUFF_SIZE = 8192;
-        char* buff = new char[BUFF_SIZE];
+        int BUFF_SIZE = std::strtoll(headers["content-length"].c_str(), nullptr, 10) + 1;
+        std::unique_ptr<char[]> buff(new char[BUFF_SIZE]);
         
-        //responce = cpr::Post();
-        while (true) { //send ???
-            ssize_t len = recv(client_fd, buff, BUFF_SIZE - 1, 0);
-            buff[len] = '\0';
+        int buff_ind = 0;
+        while (buff_ind < BUFF_SIZE) {
+            buff[buff_ind] = req[ind];
+
+            ++buff_ind;
+            ++ind; 
         }
+        buff[BUFF_SIZE] = '\0';
+        
+        responce = cpr::Post(cpr::Url{full_url}, headers, cpr::Body{buff.get()});
     }
     
 }
