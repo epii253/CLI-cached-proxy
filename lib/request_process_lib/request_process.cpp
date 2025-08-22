@@ -103,7 +103,7 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
         responce = cpr::Get(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});//, 
 
     } else if (method == ReqestProcess::head_header) {
-        responce = cpr::Head(full_url, headers); //TODO
+        responce = cpr::Head(full_url, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled}); //TODO
 
     } else if (method == ReqestProcess::post_header) { //TODO
         int BUFF_SIZE = 8192;

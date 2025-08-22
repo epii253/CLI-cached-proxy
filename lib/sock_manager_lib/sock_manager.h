@@ -10,6 +10,20 @@ const std::set<std::string> headers_to_remove{"strict-transport-security", "alt-
 
 const std::set<int> cached_satus{200, 203, 204, 206, 300, 301, 404, 405, 410, 414, 501};
  
+
+struct SocketWrapper {
+     int socket_fd = -1;
+
+     SocketWrapper(int fd) :
+     socket_fd(fd)
+     {}
+
+     ~SocketWrapper() {
+          if (socket_fd > 0)
+               close(socket_fd);
+     }
+};
+
 void SendData(int client_fd, size_t size, const char* data);
 void Proxying(int port, std::string url);
 int InitilazeServerSocket(int port);
@@ -17,5 +31,3 @@ int InitilazeServerSocket(int port);
 void CliendWork(int client_fd, const std::string& adress, const std::string& url);
 
 std::pair<std::string, std::string> GetMethodAndContent(char* buff);
-// void ModifyResponceForUser(cpr::Response& responce);
-// std::string MakeHeader(const cpr::Response& responce, size_t content_size);

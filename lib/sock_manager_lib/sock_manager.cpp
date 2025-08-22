@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <thread>
 #include <netinet/in.h>
+#include <cstdlib>
 #include <cstring>
 #include <cctype>
 
@@ -15,7 +16,6 @@ void SendData(int client_fd, size_t size, const char* data) {
     size_t sent = 0;
     
     while (sent < to_send) {
-        // std::cout << "ping" << std::endl;
         ssize_t n = send(client_fd,
                         data + sent,     
                         to_send - sent,       
@@ -94,28 +94,29 @@ std::pair<std::string, std::string> GetMethodAndContent(char* buff) {
 
 void CliendWork(int client_fd, const std::string& adress, const std::string& url) {
     RedisConnection cache;
+    SocketWrapper socket(client_fd);
 
     int BUFF_SIZE = 8192;
     char* buff = new char[BUFF_SIZE];
 
     while (true) {
-        ssize_t len = recv(client_fd, buff, BUFF_SIZE - 1, 0);
+        ssize_t len = recv(socket.socket_fd, buff, BUFF_SIZE - 1, 0);
         buff[len] = '\0';
 
         if (len > 0) {
             auto inf = GetMethodAndContent(buff);
 
-            if ((inf.first == "get" || inf.first == "head") && cache.CheckCache(inf.second)) {
+            if ((inf.first == "get" || inf.first == "head") && cache.CheckCache(inf.second)) { //Cache-hit
                 std::vector<std::string> vec;
                 cache.GetCache(inf.second, vec);
 
-                SendData(client_fd, vec[0].size(), vec[0].data());
-                SendData(client_fd, vec[1].size(), vec[1].data());
+                SendData(socket.socket_fd, vec[0].size(), vec[0].data());
+                SendData(socket.socket_fd, vec[1].size(), vec[1].data());
                 continue;
             }
 
             cpr::Response responce;
-            ReqestProcess::RedirectRequest(buff, client_fd, url,responce); 
+            ReqestProcess::RedirectRequest(buff, socket.socket_fd, url,responce); 
             responce.header["content-length"] = std::to_string(responce.text.size());
             
             std::string header = MakeHeader(responce); 
@@ -124,22 +125,21 @@ void CliendWork(int client_fd, const std::string& adress, const std::string& url
                 cache.Cache(inf.second, header, responce.text);
             } 
             
-            std::cout << "sended " << header.size() << " : " << responce.text.size() << std::endl;
-
-            SendData(client_fd, header.size(), header.data());
-            SendData(client_fd, responce.text.size(), responce.text.data());
+            SendData(socket.socket_fd, header.size(), header.data());
+            SendData(socket.socket_fd, responce.text.size(), responce.text.data());
         } else 
             break;
     }
-
-
-    close(client_fd);
-    std::cout << "CLOSE connection" << std::endl;
+    std::cout << "Close connection" << std::endl;
 }
 
 void Proxying(int port, std::string url) {
-    int listen_fd = InitilazeServerSocket(port);
+    SocketWrapper listen_fd(InitilazeServerSocket(port));
 
+    std::thread redis(std::system, "redis-server");
+    redis.detach();    
+
+    //TODO check success
 
     std::string adress = "localhost:" + std::to_string(port);
 
@@ -147,7 +147,7 @@ void Proxying(int port, std::string url) {
         sockaddr_in client_addr;
         socklen_t client_len = sizeof(client_addr);
 
-        int client_fd = accept(listen_fd, reinterpret_cast<sockaddr*>(&client_addr), &client_len);
+        int client_fd = accept(listen_fd.socket_fd, reinterpret_cast<sockaddr*>(&client_addr), &client_len);
 
         if (client_fd < 0) {
             std::cerr << "Unsucessful connection" << std::endl;
@@ -155,9 +155,7 @@ void Proxying(int port, std::string url) {
         }
         std::cout << "Accepted connection: " << client_fd << std::endl;
 
-        std::thread serv(CliendWork,client_fd, adress, url);
+        std::thread serv(CliendWork, client_fd, adress, url);
         serv.detach();
     }
-
-    close(listen_fd);
 }
