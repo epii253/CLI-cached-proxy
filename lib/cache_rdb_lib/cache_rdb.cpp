@@ -2,17 +2,18 @@
 
 #include <lib/cache_rdb_lib/cache_rdb.h>
 
-int64_t ExtractTime(const std::string& headers) {
+int64_t ExtractTime(const std::string& keys) {
 
-    auto ind = headers.find(age_header); 
-    if (ind == headers.npos)
+    auto ind = keys.find(max_age_key); 
+    if (ind == keys.npos)
         return -1;
-    ind += age_header.size() + 1;
+
+    ind += keys.size() + 1;
     int64_t result = 0;
 
-    while (ind < headers.size() && isdigit(headers[ind])) {
+    while (ind < keys.size() && isdigit(keys[ind])) {
         result *= 10;
-        result += headers[ind] - '0';
+        result += keys[ind] - '0';
         ++ind;
     }
     return result;
@@ -36,14 +37,20 @@ bool RedisConnection::CheckCache(const std::string& key) {
     return connection->exists(key) > 0;
 }
 
-void RedisConnection::Cache(const std::string& key, const std::string& headers, const std::string& body) {
-    if (!opened)
+void RedisConnection::Cache(const std::string& key, const std::string& headers, const std::string& body, const cpr::Response& responce) {
+    if (!opened || responce.header.find(cache_control_header) == responce.header.end())
         return;
+
+    auto keys = responce.header.find(cache_control_header)->second;
+    if (keys.find("private") != keys.npos) {
+        return;
+    }
+
+    int64_t max_age = ExtractTime(keys);
 
     connection->del(key);
     
     connection->rpush(key, {headers, body});
-    int64_t max_age = ExtractTime(headers);
     
     if (max_age != -1)
         connection->expire(key, max_age);

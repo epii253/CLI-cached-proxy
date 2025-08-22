@@ -122,11 +122,12 @@ void CliendWork(int client_fd, const std::string& adress, const std::string& url
             std::string header = MakeHeader(responce); 
 
             if ((inf.first == "get" || inf.first == "head") && cached_satus.find(responce.status_code) != cached_satus.end()) {
-                cache.Cache(inf.second, header, responce.text);
+                cache.Cache(inf.second, header, responce.text, responce);
             } 
             
             SendData(socket.socket_fd, header.size(), header.data());
             SendData(socket.socket_fd, responce.text.size(), responce.text.data());
+            
         } else 
             break;
     }

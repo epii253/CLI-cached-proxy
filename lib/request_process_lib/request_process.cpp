@@ -47,7 +47,6 @@ void ReqestProcess::GzipCompress(std::string &output, const std::string &input, 
 
 void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std::string& origin, cpr::Response& responce) {
     std::string_view req(buffer);
-
     int ind = 0;
     std::string method;
     std::string content;
@@ -68,7 +67,6 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
     while (ind < req.size() && !(std::isprint(req[ind]) && !std::isspace(req[ind]))) {
         ++ind;
     }   
-
     cpr::Url full_url{origin + content};
     cpr::Header headers;
     
@@ -100,8 +98,8 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
     }
 
     if (method == ReqestProcess::get_header) {            
-        responce = cpr::Get(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});//, 
-
+        responce = cpr::Get(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});
+        
     } else if (method == ReqestProcess::head_header) {
         responce = cpr::Head(full_url, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled}); //TODO
 
