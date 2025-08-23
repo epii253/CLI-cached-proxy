@@ -90,7 +90,8 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
         if (field == "host") {
             val = origin.substr(origin.find("//") + 2);
         }
-        headers[field] = val;        
+
+        headers[field] = val;    
 
         if (std::isspace(req[ind])) {
             ++ind;
@@ -104,7 +105,7 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
     } else if (method == ReqestProcess::head_header) {
         responce = cpr::Head(full_url, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled}); //TODO
 
-    } else if (method == ReqestProcess::post_header) { //TODO
+    } else if (method == ReqestProcess::post_header) {
         int BUFF_SIZE = std::strtoll(headers["content-length"].c_str(), nullptr, 10) + 1;
         std::unique_ptr<char[]> buff(new char[BUFF_SIZE]);
         
@@ -115,9 +116,8 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
             ++buff_ind;
             ++ind; 
         }
-        buff[BUFF_SIZE] = '\0';
         
-        responce = cpr::Post(cpr::Url{full_url}, headers, cpr::Body{buff.get()});
+        responce = cpr::Post(cpr::Url{full_url}, headers, cpr::Body{buff.get()},cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});
     }
     
 }

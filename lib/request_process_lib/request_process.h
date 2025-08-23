@@ -25,5 +25,5 @@ const std::string get_header = "get";
 const std::string head_header = "head";
 const std::string post_header = "post";
 
-const std::set<std::string> banned_headers {"refer", "connection"};
+const std::set<std::string> banned_headers {"referer", "connection", "origin"};
 }
