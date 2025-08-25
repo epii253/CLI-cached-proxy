@@ -98,14 +98,14 @@ void CliendWork(int client_fd, const std::string& adress, const std::string& url
     SocketWrapper socket(client_fd);
 
     int BUFF_SIZE = 8192;
-    char* buff = new char[BUFF_SIZE];
+    std::unique_ptr<char[]> buff(new char[BUFF_SIZE]); //RAII 
 
     while (true) {
-        ssize_t len = recv(socket.socket_fd, buff, BUFF_SIZE - 1, 0);
+        ssize_t len = recv(socket.socket_fd, buff.get(), BUFF_SIZE - 1, 0);
         buff[len] = '\0';
 
         if (len > 0) {
-            auto inf = GetMethodAndContent(buff);
+            auto inf = GetMethodAndContent(buff.get());
 
             if ((inf.first == "get" || inf.first == "head") && cache.CheckCache(inf.second)) { //Cache-hit
                 std::vector<std::string> vec;
@@ -117,7 +117,7 @@ void CliendWork(int client_fd, const std::string& adress, const std::string& url
             }
 
             cpr::Response responce;
-            ReqestProcess::RedirectRequest(buff, socket.socket_fd, url,responce); 
+            ReqestProcess::RedirectRequest(buff.get(), socket.socket_fd, url,responce); 
             responce.header["content-length"] = std::to_string(responce.text.size());
             
             std::string header = MakeHeader(responce); 
@@ -138,10 +138,20 @@ void CliendWork(int client_fd, const std::string& adress, const std::string& url
 void Proxying(int port, std::string url) {
     SocketWrapper listen_fd(InitilazeServerSocket(port));
 
+    while (listen_fd.socket_fd < 0 && port < 7000) {
+        port++;
+        listen_fd = SocketWrapper(InitilazeServerSocket(port));
+    }
+
+    if (listen_fd.socket_fd < 0) {
+        std::cerr << "Cannot open socket" << std::endl;
+        return;
+    }
+
     std::thread redis(std::system, "redis-server");
     redis.detach();    
 
-    //TODO check success
+    //TODO check success ?
 
     std::string adress = "localhost:" + std::to_string(port);
 
@@ -149,15 +159,17 @@ void Proxying(int port, std::string url) {
         sockaddr_in client_addr;
         socklen_t client_len = sizeof(client_addr);
 
-        int client_fd = accept(listen_fd.socket_fd, reinterpret_cast<sockaddr*>(&client_addr), &client_len);
+        SocketWrapper client_fd( accept(listen_fd.socket_fd, reinterpret_cast<sockaddr*>(&client_addr), &client_len) );
 
-        if (client_fd < 0) {
+        if (client_fd.socket_fd < 0) {
             std::cerr << "Unsucessful connection" << std::endl;
             continue;
         }
-        std::cout << "Accepted connection: " << client_fd << std::endl;
+        std::cout << "Accepted connection: " << client_fd.socket_fd << std::endl;
 
-        std::thread serv(CliendWork, client_fd, adress, url);
+        std::thread serv(CliendWork, client_fd.socket_fd, adress, url);
         serv.detach();
+
+        client_fd.Realese();
     }
 }

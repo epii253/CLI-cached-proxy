@@ -6,7 +6,7 @@
 #include <utility>
 
 const std::set<std::string> headers_to_remove{"strict-transport-security", "alt-svc", "upgrade-insecure-requests", \
-     "set-cookie", "content-security-policy", "x-powered-by"}; 
+     "set-cookie", "content-security-policy", "x-powered-by", "cookie"}; 
 
 const std::set<int> cached_satus{200, 203, 204, 206, 300, 301, 404, 405, 410, 414, 501};
  
@@ -17,6 +17,10 @@ struct SocketWrapper {
      SocketWrapper(int fd) :
      socket_fd(fd)
      {}
+
+     void Realese() {
+          socket_fd = -1;
+     }
 
      ~SocketWrapper() {
           if (socket_fd > 0)

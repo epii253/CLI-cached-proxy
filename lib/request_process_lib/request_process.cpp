@@ -7,7 +7,7 @@
 
 #include <lib/request_process_lib/request_process.h>
 
-void ReqestProcess::GzipCompress(std::string &output, const std::string &input, int level = Z_BEST_COMPRESSION) {
+void ReqestProcess::GzipCompress(std::string &output, const std::string &input, int level = Z_BEST_COMPRESSION) { // delete ?
     if (input.empty()) 
         return;
 
@@ -45,28 +45,36 @@ void ReqestProcess::GzipCompress(std::string &output, const std::string &input, 
     deflateEnd(&zs);
 }
 
+int ReqestProcess::ExtractInf(int index, const std::string_view& request, std::string& method, std::string& content) {
+    
+    while (index < request.size() && std::isalpha(request[index]) ) { //Parse method
+        method.push_back(std::tolower(request[index++]));
+    }
+    ++index;
+    
+    while (index < request.size() && request[index] != ' ') { // parse content
+        content.push_back(std::tolower(request[index++]));
+    }
+    ++index;
+
+    while (index < request.size() && std::isprint(request[index]) && !std::isspace(request[index])) { //skip protocol
+        ++index;
+    }
+    while (index < request.size() && !(std::isprint(request[index]) && !std::isspace(request[index]))) { // skip /r/n
+        ++index;
+    }   
+
+    return index;
+}
+
+
 void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std::string& origin, cpr::Response& responce) {
     std::string_view req(buffer);
-    int ind = 0;
     std::string method;
     std::string content;
 
-    while (ind < req.size() && std::isalpha(req[ind]) ) {
-        method.push_back(std::tolower(req[ind++]));
-    }
-    ++ind;
-    
-    while (ind < req.size() && req[ind] != ' ') {
-        content.push_back(std::tolower(req[ind++]));
-    }
-    ++ind;
+    int ind = ExtractInf(0, req, method, content);
 
-    while (ind < req.size() && std::isprint(req[ind]) && !std::isspace(req[ind])) {
-        ++ind;
-    }
-    while (ind < req.size() && !(std::isprint(req[ind]) && !std::isspace(req[ind]))) {
-        ++ind;
-    }   
     cpr::Url full_url{origin + content};
     cpr::Header headers;
     
@@ -89,12 +97,16 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
 
         if (field == "host") {
             val = origin.substr(origin.find("//") + 2);
+
+        } else if (field == "origin") {
+            val = origin;
         }
+
 
         headers[field] = val;    
 
         if (std::isspace(req[ind])) {
-            ++ind;
+            ind += 2; // skip \r\n
             break;
         }
     }
@@ -103,14 +115,14 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
         responce = cpr::Get(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});
         
     } else if (method == ReqestProcess::head_header) {
-        responce = cpr::Head(full_url, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled}); //TODO
+        responce = cpr::Head(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled}); //similar to Get
 
-    } else if (method == ReqestProcess::post_header) {
-        int BUFF_SIZE = std::strtoll(headers["content-length"].c_str(), nullptr, 10) + 1;
-        std::unique_ptr<char[]> buff(new char[BUFF_SIZE]);
-        
+    } else if (method == ReqestProcess::post_header) { 
+        int BUFF_SIZE = std::strtoll(headers["content-length"].c_str(), nullptr, 10); // must be > 0 ?
+        std::unique_ptr<char[]> buff(new char[BUFF_SIZE]); //RAII 
         int buff_ind = 0;
-        while (buff_ind < BUFF_SIZE) {
+
+        while (buff_ind < BUFF_SIZE && ind < req.size()) { //Copy content to Body-buffer
             buff[buff_ind] = req[ind];
 
             ++buff_ind;
