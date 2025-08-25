@@ -7,113 +7,103 @@
 
 #include <lib/request_process_lib/request_process.h>
 
-void ReqestProcess::GzipCompress(std::string &output, const std::string &input, int level = Z_BEST_COMPRESSION) {
-    if (input.empty()) 
-        return;
+bool ReqestProcess::ValidateByEtag(const std::string& etag, cpr::Response& responce, int client_fd, const std::string& origin, const std::string& method, const std::string& content) {
+    std::string request = method + " " + content + "\r\n" + "If-None-Match: " + '"' + etag + '"' + "\r\n" + "\r\n";
 
-    z_stream zs;
-    std::memset(&zs, 0, sizeof(zs));
-
-    int windowBits = 15 + 16;
-    if (deflateInit2(&zs, level, Z_DEFLATED, windowBits, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
-        throw std::runtime_error("deflateInit2 failed");
-    }
-
-    zs.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(input.data()));
-    zs.avail_in = static_cast<uInt>(input.size());
-
-    const size_t chunkSize = 5242880;
-    output.reserve(input.size() / 2);
-
-    unsigned char outbuf[chunkSize];
-
-    int ret;
-    do {
-        zs.next_out = outbuf;
-        zs.avail_out = sizeof(outbuf);
-
-        ret = deflate(&zs, zs.avail_in ? Z_NO_FLUSH : Z_FINISH);
-        if (ret == Z_STREAM_ERROR) {
-            deflateEnd(&zs);
-            throw std::runtime_error("deflate failed (Z_STREAM_ERROR)");
-        }
-
-        size_t have = sizeof(outbuf) - zs.avail_out;
-        output.append(reinterpret_cast<char*>(outbuf), have);
-    } while (ret != Z_STREAM_END);
-
-    deflateEnd(&zs);
+    RedirectRequest(request.c_str(), client_fd, origin, responce);
+    return responce.status_code == 304;
 }
 
-void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std::string& origin, cpr::Response& responce) {
-    std::string_view req(buffer);
-
-    int ind = 0;
-    std::string method;
-    std::string content;
-
-    while (ind < req.size() && std::isalpha(req[ind]) ) {
-        method.push_back(std::tolower(req[ind++]));
-    }
-    ++ind;
+int ReqestProcess::ExtractInf(int index, const std::string_view& request, std::string& method, std::string& content) {
     
-    while (ind < req.size() && req[ind] != ' ') {
-        content.push_back(std::tolower(req[ind++]));
+    while (index < request.size() && std::isalpha(request[index]) ) { //Parse method
+        method.push_back(std::tolower(request[index++]));
     }
-    ++ind;
+    ++index;
+    
+    while (index < request.size() && request[index] != ' ') { // parse content
+        content.push_back(std::tolower(request[index++]));
+    }
+    ++index;
 
-    while (ind < req.size() && std::isprint(req[ind]) && !std::isspace(req[ind])) {
-        ++ind;
+    while (index < request.size() && std::isprint(request[index]) && !std::isspace(request[index])) { //skip protocol
+        ++index;
     }
-    while (ind < req.size() && !(std::isprint(req[ind]) && !std::isspace(req[ind]))) {
-        ++ind;
+    
+    while (index < request.size() && !(std::isprint(request[index]) && !std::isspace(request[index]))) { // skip /r/n
+        ++index;
     }   
 
-    cpr::Url full_url{origin + content};
-    cpr::Header headers;
-    
-    while (ind < req.size()) {
+    return index;
+}
+
+void ReqestProcess::ParseHeaders(cpr::Header& headers, const std::string_view& request, int& index, const std::string& origin) {
+    while (index < request.size()) {
         std::string field;
         std::string val;
 
-        while (ind < req.size() && req[ind] != ':') {
-            field.push_back(std::tolower(req[ind++]));
+        while (index < request.size() && request[index] != ':') {
+            field.push_back(std::tolower(request[index++]));
         }
-        ind += 2; 
+        index += 2; 
 
-        while (ind < req.size() && req[ind] != '\n') {
-            val.push_back(req[ind++]);
+        while (index < request.size() && request[index] != '\n') {
+            val.push_back(request[index++]);
         }
-        
-        while (ind < req.size() && !std::isalnum(req[ind])) {
-            ++ind;
-        }
+        index += 1;
         
         if (ReqestProcess::banned_headers.find(field) != ReqestProcess::banned_headers.end() || field.empty())
             continue;
 
         if (field == "host") {
             val = origin.substr(origin.find("//") + 2);
+
+        } else if (field == "origin") {
+            val = origin;
         }
 
-        headers[field] = val;        
+
+        headers[field] = val;    
+
+        if (std::isspace(request[index])) {
+            index += 2; // skip \r\n
+            break;
+        }
     }
+}
+
+void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std::string& origin, cpr::Response& responce) {
+    std::string_view req(buffer);
+    std::string method;
+    std::string content;
+
+    int ind = ExtractInf(0, req, method, content);
+
+    cpr::Url full_url{origin + content};
+    cpr::Header headers;
+
+    ParseHeaders(headers, req, ind, origin);
+    
 
     if (method == ReqestProcess::get_header) {            
-        responce = cpr::Get(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});//, 
-
-    } else if (method == ReqestProcess::head_header) {
-        responce = cpr::Head(full_url, headers); //TODO
-
-    } else if (method == ReqestProcess::post_header) { //TODO
-        int BUFF_SIZE = 8192;
-        char* buff = new char[BUFF_SIZE];
+        responce = cpr::Get(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});
         
-        //responce = cpr::Post();
-        while (true) { //send ???
-            ssize_t len = recv(client_fd, buff, BUFF_SIZE - 1, 0);
-            buff[len] = '\0';
+    } else if (method == ReqestProcess::head_header) {
+        responce = cpr::Head(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled}); //similar to Get
+
+    } else if (method == ReqestProcess::post_header) { 
+        int BUFF_SIZE = std::strtoll(headers["content-length"].c_str(), nullptr, 10);
+        std::unique_ptr<char[]> buff(new char[BUFF_SIZE]); //RAII 
+        int buff_ind = 0;
+
+        while (buff_ind < BUFF_SIZE && ind < req.size()) { //Copy content to Body-buffer
+            buff[buff_ind] = req[ind];
+
+            ++buff_ind;
+            ++ind; 
         }
+        
+        responce = cpr::Post(cpr::Url{full_url}, headers, cpr::Body{buff.get()},cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});
     }
     
 }
