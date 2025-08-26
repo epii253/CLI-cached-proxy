@@ -1,5 +1,4 @@
 #include <iostream>
-#include <unistd.h>
 #include <thread>
 #include <cstdlib>
 #include <cstring>
@@ -7,7 +6,6 @@
 
 #include <lib/sock_manager_lib/sock_manager.h>
 #include <lib/cache_rdb_lib/cache_rdb.h>
-//#include <lib/request_process_lib/request_process.h>
 
 void SendData(int client_fd, size_t size, const char* data) {
     size_t to_send = size;
@@ -33,7 +31,7 @@ int InitilazeServerSocket(int port) {
     if (listen_fd < 0) {
         std::cerr << "Unsucessful soket open" << std::endl;
 
-        return 1;
+        return -1;
     }
 
     sockaddr_in addr{};
@@ -45,14 +43,14 @@ int InitilazeServerSocket(int port) {
         close(listen_fd);
 
         std::cerr << "Unsucessful soket bind" << std::endl;
-        return 1;
+        return -1;
     }
 
     if (listen(listen_fd, SOMAXCONN) < 0) {
         close(listen_fd);
 
         std::cerr << "Unsucessful listening start" << std::endl;
-        return 1;
+        return -1;
     }
     std::cout << "Server listening on port " << port << "\n";
 

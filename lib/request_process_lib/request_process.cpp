@@ -8,7 +8,7 @@
 #include <lib/request_process_lib/request_process.h>
 
 bool ReqestProcess::ValidateByEtag(const std::string& etag, cpr::Response& responce, int client_fd, const std::string& origin, const std::string& method, const std::string& content) {
-    std::string request = method + " " + content + "\r\n" + "If-None-Match: " + '"' + etag + '"' + "\r\n" + "\r\n";
+    std::string request = method + " " + content + " HTTP1.1" + "\r\n" + "If-None-Match: "  + etag + "\r\n" + "\r\n";
 
     RedirectRequest(request.c_str(), client_fd, origin, responce);
     return responce.status_code == 304;
@@ -26,11 +26,11 @@ int ReqestProcess::ExtractInf(int index, const std::string_view& request, std::s
     }
     ++index;
 
-    while (index < request.size() && std::isprint(request[index]) && !std::isspace(request[index])) { //skip protocol
+    while (index < request.size() && std::isprint(request[index]) && !std::isspace(request[index])) { //skip protocol name
         ++index;
     }
     
-    while (index < request.size() && !(std::isprint(request[index]) && !std::isspace(request[index]))) { // skip /r/n
+    while (index < request.size() && !(std::isprint(request[index]) && !std::isspace(request[index]))) { // skip \r\n
         ++index;
     }   
 
@@ -96,7 +96,7 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
         std::unique_ptr<char[]> buff(new char[BUFF_SIZE]); //RAII 
         int buff_ind = 0;
 
-        while (buff_ind < BUFF_SIZE && ind < req.size()) { //Copy content to Body-buffer
+        while (buff_ind < BUFF_SIZE && ind < req.size()) { // copy content to Body-buffer
             buff[buff_ind] = req[ind];
 
             ++buff_ind;

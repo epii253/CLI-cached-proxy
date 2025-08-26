@@ -17,9 +17,16 @@ if (NOT TARGET cpr::cpr)
 	FetchContent_Declare(
 		cpr
 		GIT_REPOSITORY https://github.com/libcpr/cpr.git
-		GIT_TAG 1.11.1
+		GIT_TAG 1.11.0
 	)
 	FetchContent_MakeAvailable(cpr)
 endif()
+
+# FetchContent_Declare(
+#   cpr
+#   GIT_REPOSITORY https://github.com/libcpr/cpr.git
+#   GIT_TAG 1.11.1
+# )
+# FetchContent_MakeAvailable(cpr)
 
 set(CPR_BUILD_TESTS OFF CACHE BOOL "Disable CPR tests" FORCE)

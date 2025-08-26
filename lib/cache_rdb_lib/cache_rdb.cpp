@@ -1,8 +1,8 @@
 #include <iostream>
 #include <optional>
 
-#include <lib/cache_rdb_lib/cache_rdb.h>
 #include <lib/request_process_lib/request_process.h>
+#include <lib/cache_rdb_lib/cache_rdb.h>
 
 int64_t ExtractTime(const std::string& keys) {
 
@@ -53,12 +53,12 @@ void RedisConnection::LookUpCache(std::string_view request, std::string& header,
     std::string etag = GetEtagByKey(inf.second);
 
     cpr::Response responce;
-    if ((inf.first == "get" || inf.first == "head") && CheckCache(inf.second) && \
+    if ((inf.first == "get" || inf.first == "head") && CheckCache(inf.second) && !etag.empty() && \
             ReqestProcess::ValidateByEtag(etag, responce, fd, origin_, inf.first, inf.second)) {
         std::vector<std::string> vec;
         this->GetCache(inf.second, vec);
-        vec[0] = header;
-        vec[1] = body;
+        header = vec[0];
+        body = vec[1];
         
     } else {
         ReqestProcess::RedirectRequest(request.data(), fd, origin_, responce);
@@ -66,7 +66,8 @@ void RedisConnection::LookUpCache(std::string_view request, std::string& header,
 
         header = MakeHeader(responce);
         body = responce.text;
-        
+        etag = responce.header.find("etag") == responce.header.end() ? "" : responce.header["etag"];
+         
         if ((inf.first == "get" || inf.first == "head") && cached_satus.contains(responce.status_code)) {
             this->WriteToCache(inf.second, header, body, etag, responce);
         }
@@ -74,18 +75,19 @@ void RedisConnection::LookUpCache(std::string_view request, std::string& header,
 }
 
 void RedisConnection::WriteToCache(const std::string& key, const std::string& head, const std::string& body, const std::string& etag, const cpr::Response& responce) {
-    if (!opened || responce.header.find(cache_control_header) == responce.header.end())
+    if (!opened)
         return;
 
-    auto keys = responce.header.find(cache_control_header)->second;
-    if (keys.find("private") != keys.npos) {
-        return;
+    int64_t max_age = 60;
+    if (responce.header.find(cache_control_header) != responce.header.end()) {
+        auto keys = responce.header.find(cache_control_header)->second;
+        if (keys.find("private") != keys.npos) {
+            return;
+        }
+        max_age = ExtractTime(keys);
     }
 
-    int64_t max_age = ExtractTime(keys);
-
     connection_->del(key);
-    
     connection_->rpush(key, {head, body, etag});
     
     if (max_age != -1)

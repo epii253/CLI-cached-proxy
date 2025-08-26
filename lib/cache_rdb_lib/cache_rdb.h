@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cpr/cpr.h>
 #include <sw/redis++/redis++.h>
 #include <string>
-#include <cpr/cpr.h>
 #include <string_view>
 #include <vector>
 #include <memory>
