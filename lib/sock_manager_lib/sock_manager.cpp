@@ -95,7 +95,7 @@ void Proxying(int port, std::string url) {
         return;
     }
 
-    std::thread redis(std::system, "redis-server");
+    std::thread redis(std::system, "redis-server ../CLI-cached-proxy/redis_files/redis.conf"); //TODO : correct path
     redis.detach();    
 
     //TODO check success ?
