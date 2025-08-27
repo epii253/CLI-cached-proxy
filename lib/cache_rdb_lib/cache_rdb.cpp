@@ -68,6 +68,8 @@ void RedisConnection::LookUpCache(std::string_view request, std::string& header,
         header = MakeHeader(responce);
         body = std::move(responce.text);
         etag = responce.header.find("etag") == responce.header.end() ? "" : responce.header["etag"];
+        if (etag[0] == 'W') 
+            etag = "";//etag.substr(2); ? only exactly same ?
          
         if ((inf.first == "get" || inf.first == "head") && cached_satus.contains(responce.status_code)) {
             this->WriteToCache(origin_ + inf.second, header, body, etag, responce);

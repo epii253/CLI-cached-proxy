@@ -31,6 +31,6 @@ const std::string put_header = "put";
 const std::string delete_header = "delete";
 const std::string options_header = "options";
 
-const std::set<std::string> banned_headers {"referer", "proxy-authenticat", "proxy-authorization" , "connection", "сonnection", \
-                                                "te", "trailers", "upgrade"}; // TODO: check more headers
+const std::set<std::string> banned_headers {"proxy-authenticate", "proxy-authorization" , "connection", "keep-alive", \
+                                                "te", "trailer", "upgrade"}; // TODO: check more headers
 }

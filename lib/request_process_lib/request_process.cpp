@@ -58,13 +58,8 @@ void ReqestProcess::ParseHeaders(cpr::Header& headers, const std::string_view& r
         if (ReqestProcess::banned_headers.find(field) != ReqestProcess::banned_headers.end() || field.empty())
             continue;
 
-        if (field == "host") {
+        if (field == "host")
             val = origin.substr(origin.find("//") + 2);
-
-        } else if (field == "origin") {
-            val = origin;
-        }
-
 
         headers[field] = val;    
 
