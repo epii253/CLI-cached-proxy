@@ -8,6 +8,9 @@
 #include <lib/request_process_lib/request_process.h>
 
 bool ReqestProcess::ValidateByEtag(const std::string& etag, cpr::Response& responce, int client_fd, const std::string& origin, const std::string& method, const std::string& content) {
+    if (etag.empty())
+        return true;
+    
     std::string request = method + " " + content + " HTTP1.1" + "\r\n" + "If-None-Match: "  + etag + "\r\n" + "\r\n";
 
     RedirectRequest(request.c_str(), client_fd, origin, responce);
@@ -83,7 +86,6 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
     cpr::Header headers;
 
     ParseHeaders(headers, req, ind, origin);
-    
 
     if (method == ReqestProcess::get_header) {            
         responce = cpr::Get(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});
@@ -91,7 +93,13 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
     } else if (method == ReqestProcess::head_header) {
         responce = cpr::Head(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled}); //similar to Get
 
-    } else if (method == ReqestProcess::post_header) { 
+    } else if (method == ReqestProcess::delete_header) {
+        responce = cpr::Delete(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled}); 
+
+    } else if (method == ReqestProcess::options_header) {
+        responce = cpr::Options(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled}); 
+
+    } else if (method == ReqestProcess::post_header || method == ReqestProcess::put_header) { 
         int BUFF_SIZE = std::strtoll(headers["content-length"].c_str(), nullptr, 10);
         std::unique_ptr<char[]> buff(new char[BUFF_SIZE]); //RAII 
         int buff_ind = 0;
@@ -103,7 +111,10 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
             ++ind; 
         }
         
-        responce = cpr::Post(cpr::Url{full_url}, headers, cpr::Body{buff.get()},cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});
+        if (method == ReqestProcess::post_header)
+            responce = cpr::Post(cpr::Url{full_url}, headers, cpr::Body{buff.get()},cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});
+        else 
+            responce = cpr::Put(cpr::Url{full_url}, headers, cpr::Body{buff.get()},cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});
     }
     
 }

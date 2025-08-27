@@ -24,7 +24,7 @@ struct SocketWrapper {
      }
 };
 
-void SendData(int client_fd, size_t size, const char* data);
+int SendData(int client_fd, size_t size, const char* data);
 void Proxying(int port, std::string url);
 int InitilazeServerSocket(int port);
 

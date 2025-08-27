@@ -27,7 +27,10 @@ bool ValidateByEtag(const std::string& etag, cpr::Response& responce, int client
 const std::string get_header = "get";
 const std::string head_header = "head";
 const std::string post_header = "post";
+const std::string put_header = "put";
+const std::string delete_header = "delete";
+const std::string options_header = "options";
 
-const std::set<std::string> banned_headers {"referer", "proxy-authenticat", "proxy-authorization" , "keep-alive", "сonnection", \
-                                            "te", "trailers", "upgrade"}; // TODO: check more headers
+const std::set<std::string> banned_headers {"referer", "proxy-authenticat", "proxy-authorization" , "connection", "сonnection", \
+                                                "te", "trailers", "upgrade"}; // TODO: check more headers
 }

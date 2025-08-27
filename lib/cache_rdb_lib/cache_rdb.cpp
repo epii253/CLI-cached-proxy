@@ -53,7 +53,8 @@ void RedisConnection::LookUpCache(std::string_view request, std::string& header,
     std::string etag = GetEtagByKey(inf.second);
 
     cpr::Response responce;
-    if ((inf.first == "get" || inf.first == "head") && CheckCache(inf.second) && !etag.empty() && \
+    
+    if ((inf.first == "get" || inf.first == "head") && CheckCache(inf.second) && \
             ReqestProcess::ValidateByEtag(etag, responce, fd, origin_, inf.first, inf.second)) {
         std::vector<std::string> vec;
         this->GetCache(inf.second, vec);
@@ -65,11 +66,11 @@ void RedisConnection::LookUpCache(std::string_view request, std::string& header,
         responce.header["content-length"] = std::to_string(responce.text.size());
 
         header = MakeHeader(responce);
-        body = responce.text;
+        body = std::move(responce.text);
         etag = responce.header.find("etag") == responce.header.end() ? "" : responce.header["etag"];
          
         if ((inf.first == "get" || inf.first == "head") && cached_satus.contains(responce.status_code)) {
-            this->WriteToCache(inf.second, header, body, etag, responce);
+            this->WriteToCache(origin_ + inf.second, header, body, etag, responce);
         }
     }
 }

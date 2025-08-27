@@ -2,12 +2,13 @@
 #include <thread>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 #include <cctype>
 
 #include <lib/sock_manager_lib/sock_manager.h>
 #include <lib/cache_rdb_lib/cache_rdb.h>
 
-void SendData(int client_fd, size_t size, const char* data) {
+int SendData(int client_fd, size_t size, const char* data) {
     size_t to_send = size;
     size_t sent = 0;
     
@@ -15,14 +16,18 @@ void SendData(int client_fd, size_t size, const char* data) {
         ssize_t n = send(client_fd,
                         data + sent,     
                         to_send - sent,       
-                        0);                  
+                        MSG_NOSIGNAL);                  
+
         if (n < 0) {
-            std::cerr << "send error" << std::endl;
-            break;
+            std::cerr << "send error: " << strerror(errno) << std::endl;
+            if (errno == EPIPE) {
+                return -1;
+            }
         }
+
         sent += static_cast<size_t>(n);
     }
-
+    return 0;
 }
 
 int InitilazeServerSocket(int port) {
@@ -73,9 +78,13 @@ void CliendWork(int client_fd, const std::string& adress, const std::string& url
             std::string body;
             cache.LookUpCache(buff.get(), head, body, client_fd);
 
-            SendData(socket.socket_fd, head.size(), head.data());
-            SendData(socket.socket_fd, body.size(), body.data());
+            int status = SendData(socket.socket_fd, head.size(), head.data());
+            if (status < 0)
+                break;
 
+            status = SendData(socket.socket_fd, body.size(), body.data());
+            if (status < 0)
+                break;
         } else 
             break;
     }
@@ -94,14 +103,10 @@ void Proxying(int port, std::string url) {
         std::cerr << "Cannot open socket" << std::endl;
         return;
     }
-
-    std::thread redis(std::system, "redis-server ../CLI-cached-proxy/redis_files/redis.conf"); //TODO : correct path
-    redis.detach();    
-
-    //TODO check success ?
+    std::vector<std::thread> workers; 
+    workers.emplace_back(std::thread(std::system, "redis-server ../CLI-cached-proxy/redis_files/redis.conf")); //TODO : correct
 
     std::string adress = "localhost:" + std::to_string(port);
-
     while (true) {
         sockaddr_in client_addr;
         socklen_t client_len = sizeof(client_addr);
@@ -114,10 +119,11 @@ void Proxying(int port, std::string url) {
         }
         std::cout << "Accepted connection: " << client_fd << std::endl;
 
-        //client_fd.Realese();
+        workers.emplace_back(std::thread(CliendWork, client_fd, adress, url));
+    }
 
-        std::thread serv(CliendWork, client_fd, adress, url);
-        serv.detach();
-
+    for (auto& it : workers) {
+        if (it.joinable())
+            it.join();
     }
 }
