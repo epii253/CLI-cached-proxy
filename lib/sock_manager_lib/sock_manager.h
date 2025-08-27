@@ -28,6 +28,6 @@ int SendData(int client_fd, size_t size, const char* data);
 void Proxying(int port, std::string url);
 int InitilazeServerSocket(int port);
 
-void CliendWork(int client_fd, const std::string& adress, const std::string& url);
+void CliendWork(int client_fd, const std::string& adress, const std::string& url, int db_port);
 
 std::pair<std::string, std::string> GetMethodAndContent(const char* buff);

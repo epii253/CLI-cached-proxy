@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
             url = std::string(argv[++i]);
         
         } else if (std::strcmp(argv[i], "--clear-cache") == 0) {
-            /*clear chache*/
+            /*clear cache*/ //TODO
         
         } else {
             return 1;

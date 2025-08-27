@@ -16,7 +16,7 @@ int SendData(int client_fd, size_t size, const char* data) {
         ssize_t n = send(client_fd,
                         data + sent,     
                         to_send - sent,       
-                        MSG_NOSIGNAL);                  
+                        MSG_NOSIGNAL); //linux-only                  
 
         if (n < 0) {
             std::cerr << "send error: " << strerror(errno) << std::endl;
@@ -62,8 +62,8 @@ int InitilazeServerSocket(int port) {
     return listen_fd;
 }
 
-void CliendWork(int client_fd, const std::string& adress, const std::string& url) {
-    RedisConnection cache(url);
+void CliendWork(int client_fd, const std::string& adress, const std::string& url, int db_port) {
+    RedisConnection cache(url, db_port);
     SocketWrapper socket(client_fd);
 
     int BUFF_SIZE = 8192;
@@ -103,8 +103,12 @@ void Proxying(int port, std::string url) {
         std::cerr << "Cannot open socket" << std::endl;
         return;
     }
+
+    int redis_port = 6379; //default
     std::vector<std::thread> workers; 
-    workers.emplace_back(std::thread(std::system, "redis-server ../CLI-cached-proxy/redis_files/redis.conf")); //TODO : correct
+    std::string command = "redis-server ../CLI-cached-proxy/redis_files/redis.conf --port "  + std::to_string(redis_port) ;
+    workers.emplace_back(std::thread(std::system, command.data())); 
+    //TODO : check correct
 
     std::string adress = "localhost:" + std::to_string(port);
     while (true) {
@@ -119,7 +123,7 @@ void Proxying(int port, std::string url) {
         }
         std::cout << "Accepted connection: " << client_fd << std::endl;
 
-        workers.emplace_back(std::thread(CliendWork, client_fd, adress, url));
+        workers.emplace_back(std::thread(CliendWork, client_fd, adress, url, redis_port));
     }
 
     for (auto& it : workers) {

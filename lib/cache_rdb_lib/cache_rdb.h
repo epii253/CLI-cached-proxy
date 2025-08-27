@@ -24,11 +24,11 @@ const std::set<int> cached_satus{200, 203, 204, 206, 300, 301, 404, 405, 410, 41
 
 class RedisConnection {
 public:
-    RedisConnection(std::string origin) :
+    RedisConnection(std::string origin, int port) :
     origin_(origin)
     {
         try {
-            connection_.reset(new sw::redis::Redis("tcp://127.0.0.1:6379"));
+            connection_.reset(new sw::redis::Redis("tcp://127.0.0.1:" + std::to_string(port)));
 
         } catch (const sw::redis::Error &e) {
             std::cerr << "Cannot open connection_ " << e.what() << std::endl; 
