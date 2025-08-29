@@ -7,9 +7,6 @@ project(
 
 set(CMAKE_CXX_STANDARD 23)
 
-add_subdirectory(bin)
-add_subdirectory(lib)
-
 include(FetchContent)
 
 find_package(cpr QUIET)
@@ -22,11 +19,14 @@ if (NOT TARGET cpr::cpr)
 	FetchContent_MakeAvailable(cpr)
 endif()
 
+set(CPR_BUILD_TESTS OFF CACHE BOOL "Disable CPR tests" FORCE)
+
+add_subdirectory(bin)
+add_subdirectory(lib)
+
 # FetchContent_Declare(
 #   cpr
 #   GIT_REPOSITORY https://github.com/libcpr/cpr.git
 #   GIT_TAG 1.11.1
 # )
 # FetchContent_MakeAvailable(cpr)
-
-set(CPR_BUILD_TESTS OFF CACHE BOOL "Disable CPR tests" FORCE)

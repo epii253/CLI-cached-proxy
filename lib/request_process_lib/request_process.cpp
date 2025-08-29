@@ -5,7 +5,7 @@
 #include <cstring>
 #include <chrono>
 
-#include <lib/request_process_lib/request_process.h>
+#include <request_process.h>
 
 bool ReqestProcess::ValidateByEtag(const std::string& etag, cpr::Response& responce, int client_fd, const std::string& origin, const std::string& method, const std::string& content) {
     if (etag.empty())
