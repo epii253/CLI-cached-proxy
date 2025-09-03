@@ -22,7 +22,7 @@ int64_t ExtractTime(const std::string& keys) {
 }
 
 std::string MakeHeader(const cpr::Response& responce) {
-    std::string to_responce = "HTTP/1.1 " + std::to_string(responce.status_code) + responce.reason + "\r\n";
+    std::string to_responce = "HTTP/1.1 " + std::to_string(responce.status_code) + " " +  responce.reason + "\r\n";
             
     for (auto& h : responce.header) {
         if (headers_to_remove.find(h.first) == headers_to_remove.end())

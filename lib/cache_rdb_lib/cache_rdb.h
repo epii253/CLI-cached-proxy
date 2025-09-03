@@ -31,7 +31,7 @@ public:
             connection_.reset(new sw::redis::Redis("tcp://127.0.0.1:" + std::to_string(port)));
 
         } catch (const sw::redis::Error &e) {
-            std::cerr << "Cannot open connection_ " << e.what() << std::endl; 
+            std::cerr << "Cannot open connection: " << e.what() << std::endl; 
             opened = false;
         }
     }
