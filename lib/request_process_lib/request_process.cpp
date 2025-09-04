@@ -82,6 +82,13 @@ void ReqestProcess::RedirectRequest(const char* buffer, int client_fd, const std
 
     ParseHeaders(headers, req, ind, origin);
 
+    std::cout << "==========" << std::endl;
+    for (auto& it : headers) {
+        
+        std::cout << it.first << ": " << it.second << std::endl;
+    }
+    std::cout << std::endl;
+    
     if (method == ReqestProcess::get_header) {            
         responce = cpr::Get(cpr::Url{full_url}, headers, cpr::AcceptEncoding{cpr::AcceptEncodingMethods::disabled});
         
